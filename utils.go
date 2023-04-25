@@ -4,10 +4,20 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
+	"io"
 	"net/http"
+	"sort"
+)
 
-	"github.com/gin-gonic/gin"
+var (
+	token          string
+	appID          string
+	appsecret      string
+	encodingAESKey string
+	key            []byte
 )
 
 var xmlContentType = []string{"application/xml; charset=utf-8"}
@@ -77,6 +87,12 @@ func setContentType(w http.ResponseWriter, value []string) {
 	}
 }
 
-func responseOK(ctx *gin.Context, str string) {
+func calcSignature(args ...string) string {
+	sort.Strings(args)
+	h := sha1.New()
+	for _, arg := range args {
+		io.WriteString(h, arg)
+	}
 
+	return hex.EncodeToString(h.Sum(nil))
 }

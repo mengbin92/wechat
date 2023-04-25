@@ -8,17 +8,21 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
 func initWeChatInfo() {
-	weChatInfo = &WeChatInfo{
-		AppID:          viper.GetString("wechat.appID"),
-		Appsecret:      viper.GetString("wechat.appsecret"),
-		Token:          viper.GetString("wechat.token"),
-		EncodingAESKey: viper.GetString("wechat.encodingkey"),
+	appID = viper.GetString("wechat.appID")
+	appsecret = viper.GetString("wechat.appsecret")
+	token = viper.GetString("wechat.token")
+	encodingAESKey = viper.GetString("wechat.encodingkey")
+
+	var err error
+	key, err = decodeAESKey(encodingAESKey)
+	if err != nil {
+		panic(errors.Wrap(err, "decode aes key error"))
 	}
 }
 
@@ -30,12 +34,12 @@ func weChatVerify(ctx *gin.Context) {
 		nonce     = ctx.Query("nonce")
 		echostr   = ctx.Query("echostr")
 	)
-	if !verify(weChatInfo.Token, timestamp, nonce, signature) {
+	if calcSignature(token, timestamp, nonce) != signature {
 		log.Error("WeChat Verify failed")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "WeChat Verify failed"})
+		errResponse(ctx, errors.New("WeChat Verify failed"))
 		return
 	}
-	ctx.Writer.WriteString(echostr)
+	stringResponse(ctx, echostr)
 }
 
 func weChat(ctx *gin.Context) {
@@ -46,46 +50,41 @@ func weChat(ctx *gin.Context) {
 		timestamp    = ctx.Query("timestamp")
 		nonce        = ctx.Query("nonce")
 		encrypt_type = ctx.Query("encrypt_type")
-		// msg_sig      = ctx.Query("msg_signature")
+		msg_sig      = ctx.Query("msg_signature")
 	)
-
-	if !verify(weChatInfo.Token, timestamp, nonce, signature) {
+	if calcSignature(token, timestamp, nonce) != signature {
 		log.Error("WeChat Verify failed")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "WeChat Verify failed"})
+		errResponse(ctx, errors.New("WeChat Verify failed"))
 		return
 	}
-
-	log.Info("verify pass")
 
 	body, err := io.ReadAll(ctx.Request.Body)
 	if err != nil {
 		log.Errorf("read request body error: %s", err.Error())
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "read request body error"})
+		errResponse(ctx, errors.New("read request body error"))
 		return
 	}
 	log.Infof("request body: %s", string(body))
 
-	var reqBodyBytes []byte
+	var reqBodyBytes, random []byte
 	if encrypt_type == "" {
 		reqBodyBytes = body
 	} else {
-		_, reqBodyBytes, _, err = weChatInfo.DecryptMsg(body)
+		random, reqBodyBytes, err = handlerEncrypt(body, timestamp, nonce, msg_sig)
 		if err != nil {
-			log.Errorf("decrypt msg error: %s", err.Error())
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "read request body error"})
+			errResponse(ctx, err)
 			return
 		}
 	}
+	log.Infof("random: %s", string(random))
 	log.Infof("request body: %s", string(reqBodyBytes))
 	reqBody := &WeChatMsg{}
 	err = xml.Unmarshal(reqBodyBytes, reqBody)
 	if err != nil {
 		log.Errorf("xml.Unmarshal request error: %s", err.Error())
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "read request body error"})
+		errResponse(ctx, errors.Wrap(err, "xml.Unmarshal request error"))
 		return
 	}
-	reqBytes, _ := sonic.Marshal(reqBody)
-	log.Infof("Get requset from wechat: %s", string(reqBytes))
 
 	reqCache := &WeChatCache{
 		OpenID:  reqBody.FromUserName,
@@ -115,25 +114,42 @@ func weChat(ctx *gin.Context) {
 				respBody.Content = err.Error()
 			case <-time.After(4900 * time.Millisecond):
 				respBody.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
-				// default:
-				// 	resp.Content = "答案整理中，请30s稍后重试"
 			}
 		} else {
 			respBody.Content = string(reply)
 		}
-		respBodyBytes, _ := xml.Marshal(respBody)
-		log.Infof("return msg to wechat: %s", string(respBodyBytes))
-		var respBytes []byte
-		if encrypt_type == "" {
-			respBytes = respBodyBytes
-		} else {
-			respBytes, _ = weChatInfo.EncryptMsg(respBodyBytes, respBody.FromUserName)
-		}
-		ctx.Writer.Header().Set("Content-Type", "text/xml")
-		ctx.Writer.WriteString(string(respBytes))
+	case "event":
+	case "image":
+	case "voice":
+	case "video":
+	case "shortvideo":
+	case "location":
+	case "link":
+		log.Infof("MsgType: %s not implemented", reqBody.MsgType)
+		errResponse(ctx, fmt.Errorf("MsgType: %s not implemented", reqBody.MsgType))
+		return
 	default:
 		log.Errorf("unknow MsgType: %s", reqBody.MsgType)
+		errResponse(ctx, fmt.Errorf("unknow MsgType: %s", reqBody.MsgType))
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unknow MsgType: %s", reqBody.MsgType)})
 		return
 	}
+	// if encrypt_type == "" {
+	xmlResponse(ctx, respBody)
+	// } else {
+	// 	resp, err := handlerEncryptResponse(random, timestamp, nonce, respBody)
+	// 	if err != nil {
+	// 		log.Errorf("handlerEncryptResponse error: %s", err.Error())
+	// 		errResponse(ctx, err)
+	// 		return
+	// 	}
+	// 	respBytes, _ := sonic.Marshal(&resp)
+	// 	log.Infof("response: %s", string(respBytes))
+	// 	after := WeChatEncryptRequest{
+	// 		Encrypt:    resp.Encrypt,
+	// 		ToUserName: respBody.FromUserName,
+	// 	}
+	// 	xmlResponse(ctx, after)
+
+	// }
 }

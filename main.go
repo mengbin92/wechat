@@ -16,10 +16,9 @@ import (
 )
 
 var (
-	weChatInfo *WeChatInfo
-	log        *zap.SugaredLogger
-	client     *openai.Client
-	cache      *redis.Client
+	log    *zap.SugaredLogger
+	client *openai.Client
+	cache  *redis.Client
 )
 
 func main() {
