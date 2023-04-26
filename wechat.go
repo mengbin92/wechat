@@ -145,11 +145,6 @@ func weChat(ctx *gin.Context) {
 	// 	}
 	// 	respBytes, _ := sonic.Marshal(&resp)
 	// 	log.Infof("response: %s", string(respBytes))
-	// 	after := WeChatEncryptRequest{
-	// 		Encrypt:    resp.Encrypt,
-	// 		ToUserName: respBody.FromUserName,
-	// 	}
-	// 	xmlResponse(ctx, after)
-
+	// 	xmlResponse(ctx, resp)
 	// }
 }
