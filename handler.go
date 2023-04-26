@@ -34,7 +34,7 @@ func handlerEncrypt(body []byte, timestamp, nonce, msg_sig string) (random, rawX
 	}
 
 	// get raw wechat encrypt request length
-	rawXMLMsgLen := int(decodeNetworkByteOrder(plainText[16:20]))
+	rawXMLMsgLen := int(ntohl(plainText[16:20]))
 	if rawXMLMsgLen < 0 {
 		log.Errorf("incorrect msg length: %d", rawXMLMsgLen)
 		errors.Wrapf(err, "incorrect msg length: %d", rawXMLMsgLen)
@@ -76,7 +76,7 @@ func handlerEncryptResponse(random []byte, timestamp, nonce string, msg any) (re
 
 	// create plainText
 	copy(plainText[:16], random)
-	encodeNetworkByteOrder(plainText[16:20], uint32(len(rawXMLMsg)))
+	htonl(plainText[16:20], uint32(len(rawXMLMsg)))
 	copy(plainText[20:], rawXMLMsg)
 	copy(plainText[appIDOffset:], []byte(appID))
 

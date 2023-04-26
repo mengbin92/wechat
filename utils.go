@@ -65,14 +65,14 @@ func decodeAESKey(key string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(key + "=")
 }
 
-func decodeNetworkByteOrder(orderBytes []byte) (n uint32) {
+func ntohl(orderBytes []byte) (n uint32) {
 	return uint32(orderBytes[0])<<24 |
 		uint32(orderBytes[1])<<16 |
 		uint32(orderBytes[2])<<8 |
 		uint32(orderBytes[3])
 }
 
-func encodeNetworkByteOrder(orderBytes []byte, n uint32) {
+func htonl(orderBytes []byte, n uint32) {
 	orderBytes[0] = byte(n >> 24)
 	orderBytes[1] = byte(n >> 16)
 	orderBytes[2] = byte(n >> 8)
