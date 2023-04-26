@@ -15,17 +15,22 @@ func handlerEncrypt(body []byte, timestamp, nonce, msg_sig string) (random, rawX
 		errors.Wrap(err, "unmarshal wechat encrypt request error")
 		return
 	}
+
+	// verify msg from wechat signature
 	if calcSignature(token, timestamp, nonce, request.Encrypt) != msg_sig {
 		log.Errorf("encrypt msg got from wechat verify signature failed")
 		errors.New("encrypt msg got from wechat verify signature failed")
 		return
 	}
+
+	// decode cipher text from base64
 	cipherText, err := base64.StdEncoding.DecodeString(request.Encrypt)
 	if err != nil {
 		log.Errorf("decode wechat encrypt request error: %s", err.Error())
 		errors.Wrap(err, "decode wechat encrypt request error")
 		return
 	}
+	// aes decrypt
 	plainText, err := aesDecrypt(cipherText, key)
 	if err != nil {
 		log.Errorf("decrypt wechat encrypt request error: %s", err.Error())
@@ -48,6 +53,7 @@ func handlerEncrypt(body []byte, timestamp, nonce, msg_sig string) (random, rawX
 		errors.Wrapf(err, "msg length too large: %d", rawXMLMsgLen)
 		return
 	}
+	// verify appid
 	if appID != string(plainText[appIDOffset:]) {
 		log.Errorf("Received an attack disguised as a WeChat server.")
 		errors.New("Received an attack disguised as a WeChat server.")
