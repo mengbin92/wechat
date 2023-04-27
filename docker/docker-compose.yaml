@@ -1,0 +1,32 @@
+version: '3.3'
+
+services:
+  wechat:
+    image: mengbin92/wechat:latest
+    container_name: wechat
+    volumes:
+      - ./config/wechat:/app/conf
+      - ./wfi.sh:/app/wfi.sh
+    command: /app/wfi.sh -d redis:6379 -c '/app/wechat'
+    environment:
+      - GIN_MODE=debug
+    ports:
+      - 18080:9999
+    depends_on:
+      - redis
+    networks:
+      - wechat
+
+  redis:
+    image: redis:7.0.10
+    container_name: redis
+    volumes:
+      - ./data/redis:/data
+      - ./config/redis/default.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - 6379:6379
+    networks:
+      - wechat
+
+networks:
+  wechat:

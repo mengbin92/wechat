@@ -12,7 +12,7 @@ log:
   level: 0
 
 redis:
-  addr: localhost:6379
+  addr: redis:6379
   db: 0
   password: PASSWORD
   expire: 600
