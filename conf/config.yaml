@@ -1,30 +1,45 @@
 version: 1.0.0
 
+# 服务使用的端口
 port: 9999
 
+# openAI相关配置
 openai:
+  # openAI提供的APIKey
   apikey: OPENAI_APIKEY
+  # 所属组织，非必填
   org:
+  # 代理，非必填
   proxy: http://172.26.128.1:1080
 
+# 配置日志输出级别 
 log:
   # 支持debug(-1)、info(0)、warn(1)、error(2)、dpanic(3)、panic(4)、fatal(5)
   level: 0
 
+# 使用redis缓存
 redis:
   addr: localhost:6379
   db: 0
   password: PASSWORD
   expire: 600
 
+# 微信公众号服务相关配置
 wechat:
+  # 公众号预留的token，用于校验接收到的请求是否来自微信服务器
   token: chatGPT
+  # 微信提供的AppID，暂未使用
   appID: APPID
+  # 微信提供的AppSecret，暂未使用
   appsecret: APPSECRET
+  # 安全模式使用的密钥
   encodingkey: ENCODINGKEY
 
+# 预设的应答对话
 answers:
+	# 关键字，匹配不到时调用openAI服务做应答
   - key: 123
+  	# 应答
     reply: 345
   - key: 456
     reply: 2345
