@@ -5,14 +5,6 @@ import (
 	"encoding/hex"
 )
 
-// The ChatRequest struct defines the structure for requests to be sent to the chat service. It contains two fields:
-// - Content: the content of the message
-// - Tokens: the number of tokens to generate in the response.
-type ChatRequest struct {
-	Content string `json:"content" form:"content"`
-	Tokens  int    `json:"tokens,omitempty" form:"tokens,omitempty"`
-}
-
 // The WeChatCache struct defines the structure to cache WeChat messages.
 // It contains two fields:
 // - OpenID: The unique identifier of the recipient's account.
@@ -28,4 +20,22 @@ func (cache *WeChatCache) Key() string {
 	hash := sha512.New384()
 	hash.Write([]byte(cache.OpenID + "-" + cache.Content))
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+type Answer struct {
+	Key   string
+	Reply string
+}
+
+type Answers struct {
+	Answers []Answer
+}
+
+func (a *Answers) Reply(key string) string {
+	for _,answer := range a.Answers{
+		if key == answer.Key{
+			return answer.Reply
+		}
+	}
+	return ""
 }

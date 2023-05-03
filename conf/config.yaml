@@ -22,3 +22,9 @@ wechat:
   appID: APPID
   appsecret: APPSECRET
   encodingkey: ENCODINGKEY
+
+answers:
+  - key: 123
+    reply: 345
+  - key: 456
+    reply: 2345

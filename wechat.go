@@ -102,21 +102,26 @@ func weChat(ctx *gin.Context) {
 
 	switch reqBody.MsgType {
 	case "text":
-		reply, err := cache.Get(context.Background(), reqCache.Key()).Bytes()
-		if err != nil && len(reply) == 0 {
-			log.Info("get nothing from local cache,now get data from openai")
-
-			go goChatWithChan(reqCache, respChan, errChan)
-
-			select {
-			case respBody.Content = <-respChan:
-			case err := <-errChan:
-				respBody.Content = err.Error()
-			case <-time.After(4900 * time.Millisecond):
-				respBody.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
-			}
+		a := answers.Reply(reqBody.Content)
+		if a != "" {
+			respBody.Content = a
 		} else {
-			respBody.Content = string(reply)
+			reply, err := cache.Get(context.Background(), reqCache.Key()).Bytes()
+			if err != nil && len(reply) == 0 {
+				log.Info("get nothing from local cache,now get data from openai")
+
+				go goChatWithChan(reqCache, respChan, errChan)
+
+				select {
+				case respBody.Content = <-respChan:
+				case err := <-errChan:
+					respBody.Content = err.Error()
+				case <-time.After(4900 * time.Millisecond):
+					respBody.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
+				}
+			} else {
+				respBody.Content = string(reply)
+			}
 		}
 	case "event":
 	case "image":
