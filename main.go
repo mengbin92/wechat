@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/mengbin92/openai"
 	"github.com/redis/go-redis/v9"
@@ -17,9 +16,9 @@ import (
 )
 
 var (
-	log    *zap.SugaredLogger
-	client *openai.Client
-	cache  *redis.Client
+	log     *zap.SugaredLogger
+	client  *openai.Client
+	cache   *redis.Client
 	answers *Answers
 )
 
@@ -38,8 +37,6 @@ func main() {
 	if err = viper.Unmarshal(answers); err != nil {
 		panic(fmt.Sprintf("load answers from config error: %s", err.Error()))
 	}
-	answersBytes, _ := sonic.Marshal(answers)
-	log.Infof("Answers: %s", string(answersBytes))
 
 	// init redis
 	if err = initRedis(); err != nil {
