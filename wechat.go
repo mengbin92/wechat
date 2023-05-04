@@ -1,12 +1,9 @@
 package main
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -78,65 +75,43 @@ func weChat(ctx *gin.Context) {
 	}
 	log.Infof("random: %s", string(random))
 	log.Infof("request body: %s", string(reqBodyBytes))
-	reqBody := &WeChatMsg{}
-	err = xml.Unmarshal(reqBodyBytes, reqBody)
+
+	common := &WeChatCommon{}
+	err = xml.Unmarshal(reqBodyBytes, common)
 	if err != nil {
 		log.Errorf("xml.Unmarshal request error: %s", err.Error())
 		errResponse(ctx, errors.Wrap(err, "xml.Unmarshal request error"))
 		return
 	}
+	var respBody interface{}
 
-	reqCache := &WeChatCache{
-		OpenID:  reqBody.FromUserName,
-		Content: reqBody.Content,
-	}
-
-	respBody := &WeChatMsg{}
-	respBody.FromUserName = reqBody.ToUserName
-	respBody.ToUserName = reqBody.FromUserName
-	respBody.CreateTime = time.Now().Unix()
-	respBody.MsgType = reqBody.MsgType
-
-	respChan := make(chan string)
-	errChan := make(chan error)
-
-	switch reqBody.MsgType {
+	switch common.MsgType {
 	case "text":
-		a := answers.Reply(reqBody.Content)
-		if a != "" {
-			respBody.Content = a
-		} else {
-			reply, err := cache.Get(context.Background(), reqCache.Key()).Bytes()
-			if err != nil && len(reply) == 0 {
-				log.Info("get nothing from local cache,now get data from openai")
-
-				go goChatWithChan(reqCache, respChan, errChan)
-
-				select {
-				case respBody.Content = <-respChan:
-				case err := <-errChan:
-					respBody.Content = err.Error()
-				case <-time.After(4900 * time.Millisecond):
-					respBody.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
-				}
-			} else {
-				respBody.Content = string(reply)
-			}
+		respBody, err = handlerMessage(reqBodyBytes)
+		if err != nil {
+			log.Errorf("handlerMessage error: %s", err.Error())
+			errResponse(ctx, err)
+			return
 		}
 	case "event":
+		respBody, err = handlerEvent(reqBodyBytes)
+		if err != nil {
+			log.Errorf("handlerEvent error: %s", err.Error())
+			errResponse(ctx, err)
+			return
+		}
 	case "image":
 	case "voice":
 	case "video":
 	case "shortvideo":
 	case "location":
 	case "link":
-		log.Infof("MsgType: %s not implemented", reqBody.MsgType)
-		errResponse(ctx, fmt.Errorf("MsgType: %s not implemented", reqBody.MsgType))
+		log.Infof("MsgType: %s not implemented", common.MsgType)
+		errResponse(ctx, fmt.Errorf("MsgType: %s not implemented", common.MsgType))
 		return
 	default:
-		log.Errorf("unknow MsgType: %s", reqBody.MsgType)
-		errResponse(ctx, fmt.Errorf("unknow MsgType: %s", reqBody.MsgType))
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("unknow MsgType: %s", reqBody.MsgType)})
+		log.Errorf("unknow MsgType: %s", common.MsgType)
+		errResponse(ctx, fmt.Errorf("unknow MsgType: %s", common.MsgType))
 		return
 	}
 	// if encrypt_type == "" {

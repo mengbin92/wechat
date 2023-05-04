@@ -18,7 +18,7 @@ func stringResponse(ctx *gin.Context, str string) {
 	ctx.Writer.WriteString(str)
 }
 
-func xmlResponse(ctx *gin.Context, resp any) {
+func xmlResponse(ctx *gin.Context, resp interface{}) {
 	bytes, err := xml.Marshal(resp)
 	if err != nil {
 		log.Errorf("marshal response error: %s", err.Error())

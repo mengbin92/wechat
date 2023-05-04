@@ -68,7 +68,7 @@ func handlerEncrypt(body []byte, timestamp, nonce, msg_sig string) (random, rawX
 	return
 }
 
-func handlerEncryptResponse(random []byte, timestamp, nonce string, msg any) (resp WeChatEncryptResponse, err error) {
+func handlerEncryptResponse(random []byte, timestamp, nonce string, msg interface{}) (resp WeChatEncryptResponse, err error) {
 	var rawXMLMsg, cipherText []byte
 	rawXMLMsg, err = xml.Marshal(msg)
 	if err != nil {

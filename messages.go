@@ -1,6 +1,12 @@
 package main
 
-import "encoding/xml"
+import (
+	"context"
+	"encoding/xml"
+	"time"
+
+	"github.com/pkg/errors"
+)
 
 type WeChatCommon struct {
 	XMLName      xml.Name `xml:"xml"`
@@ -80,4 +86,51 @@ type WeChatLink struct {
 	Title       string
 	Description string
 	Url         string
+}
+
+func handlerMessage(body []byte) (response *WeChatMsg, err error) {
+	reqBody := &WeChatMsg{}
+	err = xml.Unmarshal(body, reqBody)
+	if err != nil {
+		log.Errorf("xml.Unmarshal request error: %s", err.Error())
+		errors.Wrap(err, "xml.Unmarshal request error")
+		return
+	}
+
+	reqCache := &WeChatCache{
+		OpenID:  reqBody.FromUserName,
+		Content: reqBody.Content,
+	}
+
+	response = &WeChatMsg{}
+	response.FromUserName = reqBody.ToUserName
+	response.ToUserName = reqBody.FromUserName
+	response.CreateTime = time.Now().Unix()
+	response.MsgType = reqBody.MsgType
+
+	respChan := make(chan string)
+	errChan := make(chan error)
+
+	a := answers.Reply(reqBody.Content)
+	if a != "" {
+		response.Content = a
+	} else {
+		reply, err := cache.Get(context.Background(), reqCache.Key()).Bytes()
+		if err != nil && len(reply) == 0 {
+			log.Info("get nothing from local cache,now get data from openai")
+			go goChatWithChan(reqCache, respChan, errChan)
+
+			select {
+			case response.Content = <-respChan:
+			case err := <-errChan:
+				response.Content = err.Error()
+			case <-time.After(4900 * time.Millisecond):
+				response.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
+			}
+		} else {
+			response.Content = string(reply)
+		}
+	}
+
+	return
 }

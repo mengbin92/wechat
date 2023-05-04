@@ -28,3 +28,7 @@ answers:
     reply: 345
   - key: 456
     reply: 2345
+
+event:
+  subscribe: 感谢关注孟斯特！这是我的个人公众号。
+  unsubscribe: 暂时的离别是为了不久后更好的重逢，Bye!!!
