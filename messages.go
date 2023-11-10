@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/xml"
 	"time"
 
@@ -97,40 +96,39 @@ func handlerMessage(body []byte) (response *WeChatMsg, err error) {
 		return
 	}
 
-	reqCache := &WeChatCache{
-		OpenID:  reqBody.FromUserName,
-		Content: reqBody.Content,
-	}
-
 	response = &WeChatMsg{}
 	response.FromUserName = reqBody.ToUserName
 	response.ToUserName = reqBody.FromUserName
 	response.CreateTime = time.Now().Unix()
 	response.MsgType = reqBody.MsgType
 
-	respChan := make(chan string)
-	errChan := make(chan error)
+	response.Content = answers.Reply(reqBody.Content)
 
-	a := answers.Reply(reqBody.Content)
-	if a != "" {
-		response.Content = a
-	} else {
-		reply, err := cache.Get(context.Background(), reqCache.Key()).Bytes()
-		if err != nil && len(reply) == 0 {
-			log.Info("get nothing from local cache,now get data from openai")
-			go goChatWithChan(reqCache, respChan, errChan)
+	// reqCache := &WeChatCache{
+	// 	OpenID:  reqBody.FromUserName,
+	// 	Content: reqBody.Content,
+	// }
+	// respChan := make(chan string)
+	// errChan := make(chan error)
+	// if a != "" {
+	// 	response.Content = a
+	// } else {
+	// 	reply, err := cache.Get(context.Background(), reqCache.Key()).Bytes()
+	// 	if err != nil && len(reply) == 0 {
+	// 		log.Info("get nothing from local cache,now get data from openai")
+	// 		go goChatWithChan(reqCache, respChan, errChan)
 
-			select {
-			case response.Content = <-respChan:
-			case err := <-errChan:
-				response.Content = err.Error()
-			case <-time.After(4900 * time.Millisecond):
-				response.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
-			}
-		} else {
-			response.Content = string(reply)
-		}
-	}
+	// 		select {
+	// 		case response.Content = <-respChan:
+	// 		case err := <-errChan:
+	// 			response.Content = err.Error()
+	// 		case <-time.After(4900 * time.Millisecond):
+	// 			response.Content = "前方网络拥堵....\n等待是为了更好的相遇，稍后请重新发送上面的问题来获取答案，感谢理解"
+	// 		}
+	// 	} else {
+	// 		response.Content = string(reply)
+	// 	}
+	// }
 
 	return
 }
